@@ -39,10 +39,21 @@ check()
 
 # download function
 def download(url) -> None:
-    response = requests.get(url)
+    response = requests.get(url, stream=True)
     filename = url.split('/')[-1]
+    file_size = int(response.headers['Content-Length'])
+    chunk, chunk_size = 1, 1048576 # 1MB
+    num_bars = int(file_size / chunk_size)
     with open(filename, 'wb') as tar:
-        tar.write(response.content)
+        for chunk in tqdm(
+            response.iter_content(chunk_size=chunk_size),
+            total= num_bars,
+            unit = 'MB',
+            desc = filename,
+            leave = True
+            ):
+            tar.write(chunk)
+    return
 
 
 # dataset urls
@@ -77,7 +88,11 @@ check()
 # extract function
 def untar(file) -> None:
     with tarfile.open(file) as tar:
-        tar.extractall('./')
+        for member in tqdm(
+            iterable=tar.getmembers(),
+            total=len(tar.getmembers())
+            ):
+            tar.extract(member=member)
 
 # parallelized extraction
 if checks['id'] and checks['wd']:
@@ -212,8 +227,8 @@ print(f'{len(os.listdir("imdb_wiki_clean")):,} images are ready for training! :D
 
 check()
 print('Deleting cached files...')
-# if not checks['it']: os.remove('imdb_crop.tar')
-# if not checks['wt']: os.remove('wiki_crop.tar')
+if not checks['it']: os.remove('imdb_crop.tar')
+if not checks['wt']: os.remove('wiki_crop.tar')
 if not checks['id']: shutil.rmtree('imdb_crop')
 if not checks['wd']: shutil.rmtree('wiki_crop')
 if not checks['ic']: os.remove('imdb.csv')
