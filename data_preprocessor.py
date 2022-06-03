@@ -198,8 +198,12 @@ for dir in tqdm(os.listdir('imdb_crop')):
             if file.endswith('.jpg'):
                 path = os.path.join('imdb_crop', dir, file)
                 try:
-                    gender = str(imdb_df.loc[path][0])[0] + '-' + str(next(iterator)) + '.jpg'
-                    shutil.move(path, os.path.join('imdb_wiki_clean', gender))
+                    gender = str(imdb_df.loc[path][0])[0]
+                    if gender == 'n':
+                        os.remove(path)
+                    else:
+                        filename = gender + '-' + str(next(iterator)) + '.jpg'
+                        shutil.move(path, os.path.join('imdb_wiki_clean', filename))
                 except KeyError:
                     os.remove(path)
     except NotADirectoryError:
@@ -213,8 +217,12 @@ for dir in tqdm(os.listdir('wiki_crop')):
             if file.endswith('.jpg'):
                 path = os.path.join('wiki_crop', dir, file)
                 try:
-                    gender = str(wiki_df.loc[path][0])[0] + '-' + str(next(iterator)) + '.jpg'
-                    shutil.move(path, os.path.join('imdb_wiki_clean', gender))
+                    gender = str(wiki_df.loc[path][0])[0]
+                    if gender == 'n':
+                        os.remove(path)
+                    else:
+                        filename = gender + '-' + str(next(iterator)) + '.jpg'
+                        shutil.move(path, os.path.join('imdb_wiki_clean', gender))
                 except KeyError:
                     os.remove(path)
     except NotADirectoryError:
@@ -227,8 +235,8 @@ print(f'{len(os.listdir("imdb_wiki_clean")):,} images are ready for training! :D
 
 check()
 print('Deleting cached files...')
-if not checks['it']: os.remove('imdb_crop.tar')
-if not checks['wt']: os.remove('wiki_crop.tar')
+# if not checks['it']: os.remove('imdb_crop.tar')
+# if not checks['wt']: os.remove('wiki_crop.tar')
 if not checks['id']: shutil.rmtree('imdb_crop')
 if not checks['wd']: shutil.rmtree('wiki_crop')
 if not checks['ic']: os.remove('imdb.csv')
