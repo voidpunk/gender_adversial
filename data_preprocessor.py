@@ -1,5 +1,6 @@
 import os
 import shutil
+import random
 import tarfile
 import requests
 import threading
@@ -9,6 +10,7 @@ from tqdm import tqdm
 import multiprocessing
 from itertools import count
 from scipy.io import loadmat
+random.seed(3)
 
 
 
@@ -228,7 +230,6 @@ for dir in tqdm(os.listdir('wiki_crop')):
     except NotADirectoryError:
         pass # exclude the .mat file
 
-print(f'{len(os.listdir("imdb_wiki_clean")):,} images are ready for training! :D')
 
 
 ### cleaning up
@@ -241,3 +242,43 @@ if not checks['id']: shutil.rmtree('imdb_crop')
 if not checks['wd']: shutil.rmtree('wiki_crop')
 if not checks['ic']: os.remove('imdb.csv')
 if not checks['wc']: os.remove('wiki.csv')
+
+
+
+### balancing data
+
+# counting the number of images per class
+def counter():
+    f, m = 0, 0
+    elements = os.listdir('imdb_wiki_clean')
+
+    for el in elements:
+        if el[0] == '0':
+            f += 1
+        elif el[0] == '1':
+            m += 1
+
+    print('Number of images per class before balancing:')
+    print(f'N° females:\t{f}\nN° males:\t{m}')
+
+    return f, m, elements
+
+# setting up for cleaning
+f, m, elements = counter()
+if m > f:
+    d = m - f
+    elements = [el for el in elements if el[0] == '1' ]
+elif f > m:
+    d = f - m
+    elements = [el for el in elements if el[0] == '0' ]
+
+# cleaning
+for i in tqdm(range(d)):
+    # if i % 10 == 0: print(el)
+    el = random.choice(elements)
+    os.remove(os.path.join('imdb_wiki_clean', el))
+    elements.remove(el)
+
+# final report
+counter()
+print(f'{len(os.listdir("imdb_wiki_clean")):,} images are ready for training! :D')
