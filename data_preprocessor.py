@@ -1,4 +1,5 @@
 import os
+import math
 import shutil
 import random
 import tarfile
@@ -273,8 +274,8 @@ elif f > m:
     elements = [el for el in elements if el[0] == '0' ]
 
 # cleaning
+print('Balancing data...')
 for i in tqdm(range(d)):
-    # if i % 10 == 0: print(el)
     el = random.choice(elements)
     os.remove(os.path.join('imdb_wiki_clean', el))
     elements.remove(el)
@@ -282,3 +283,38 @@ for i in tqdm(range(d)):
 # final report
 counter()
 print(f'{len(os.listdir("imdb_wiki_clean")):,} images are ready for training! :D')
+
+
+
+### splitting into train and val folders
+
+# declaring split and folders
+train_val_pct = 0.8
+root = 'imdb_wiki'
+origin = 'imdb_wiki_clean'
+elements = os.listdir(origin)
+num_el = len(elements)
+
+# creating directories
+os.mkdir(root)
+os.mkdir(os.path.join(root, 'train'))
+os.mkdir(os.path.join(root, 'val'))
+for dir in os.listdir(root):
+    os.mkdir(os.path.join(root, dir, 'female'))
+    os.mkdir(os.path.join(root, dir, 'male'))
+
+# transfering files
+c_f, c_m = 0, 0
+print('Splitting the data...')
+for el in tqdm(elements):
+    if el[0] == '0':
+        dir = 'train' if c_f <= math.floor(num_el//2*0.8) else 'val'
+        shutil.move(os.path.join(origin, el), os.path.join(root, dir, 'female'))
+        c_f += 1
+    if el[0] == '1':
+        dir = 'train' if c_m <= math.floor(num_el//2*0.8) else 'val'
+        shutil.move(os.path.join(origin, el), os.path.join(root, dir, 'male'))
+        c_m += 1
+
+# cleaning the empty folder
+shutil.rmtree(origin)
