@@ -1,12 +1,12 @@
-import plotly.graph_objects as go
-import streamlit as st
+import cv2
 import numpy as np
+import PIL
+import plotly.graph_objects as go
+import requests
+import streamlit as st
+import torch
 import torchvision
 import validators
-import requests
-import torch
-import PIL
-import cv2
 
 
 def load_model(path):
@@ -39,33 +39,42 @@ def preprocess_image(image):
 
 def model_predict(image):
     global model
-    labels = {
-        0: 'female',
-        1: 'male'
-    }
+    # 0: 'female',
+    # 1: 'male'
     image = preprocess_image(image)
     with torch.no_grad():
         out = model(image)
     pct = torch.nn.functional.softmax(out, dim=1)[0] * 100
     female = pct[0].item()
     male = pct[1].item()
-    enby = 100 - abs(female - male)
-    plot = 2 * female - 100
+    gender_raw = abs(2 * female - 100)
+    gender_bin = np.power(gender_raw, (1/2)) * 10
+    if female < male:
+        gender_raw = -gender_raw
+        gender_bin = -gender_bin
+    # female = 60; male = 100 - female
+    # st.write(female, male)
+    enby_raw = 100 - abs(female - male)
+    enby_bin = np.power(enby_raw, (2)) / 100
     pred = {
-        'female': round(female, 2),
-        'male'  : round(male, 2),
-        'enby'  : round(enby, 2),
-        'max'   : round(max(female, male), 2),
-        'plot'  : round(plot, 2),
+        'female'    : round(female, 2),
+        'male'      : round(male, 2),
+        'max'       : round(np.power(max(female, male), (1/2)), 2),
+        'enby_bin'  : round(enby_bin, 2),
+        'enby_raw'  : round(enby_raw, 2),
+        'gender_raw': round(gender_raw, 2),
+        'gender_bin': round(gender_bin, 2),
     }
     return pred
 
 
-def plot_pred(pred):
+def plot_pred(pred, bin=False):
+    gender = pred['gender_bin'] if bin else pred['gender_raw']
+    # st.write(gender)
     fig1 = go.Figure()
     fig1.add_trace(go.Indicator(
     mode = "gauge+number+delta",
-    value = pred['max'],
+    value = abs(gender/10),
     domain = {'x': [0, 1], 'y': [0, 1]},
     title = {'text': "Gender Score", 'font': {'size': 54}, },
     delta = {
@@ -87,13 +96,13 @@ def plot_pred(pred):
         'steps': [
             {'range': [x, y], 'color': f'hsv({z},100,100)'}
             for x, y, z in zip(
-                [x for x in range(-100, 195, 2)],
-                [y for y in range(-95, 200, 2)],
+                [x for x in range(-100, 100, 2)],
+                [y for y in range(-95, 105, 2)],
                 [z for z in range(220, 320)]
                 )
             ],
         'threshold': {
-            'value': pred['plot'],
+            'value': gender,
             'thickness': 1,
             'line': {'color': "hsv(120,100,100)", 'width': 5},
         }}
@@ -104,9 +113,10 @@ def plot_pred(pred):
             'family': "Arial"}
     )
     fig2 = go.Figure()
+    enby = pred['enby_bin'] if bin else pred['enby_raw']
     fig2.add_trace(go.Indicator(
         mode = "number+gauge",
-        value = pred['enby'],
+        value = round(enby)/10,
         gauge = {
             'shape': "bullet",
             'axis': {
@@ -116,11 +126,28 @@ def plot_pred(pred):
             },
             'bordercolor': "gray",
             'bar': {
-                # 'value': pred['enby'],
                 'thickness': 1,
-                'color': "hsv(270,100,100)"
+                'color': "hsva(270,100,100,0)"
                 },
+            'steps': [
+                {'range': [x, y], 'color': f'rgba(0,0,0,{int(z+1<=enby)})'}
+                for z, (x, y) in enumerate(zip(range(0, 24), range(2, 26)))
+            ] + [
+                {'range': [x, y], 'color': f'rgba(148,0,211,{int(z+26<=enby)})'}
+                for z, (x, y) in enumerate(zip(range(25, 49), range(27, 51)))
+            ] + [
+                {'range': [x, y], 'color': f'rgba(255,255,255,{int(z+51<=enby)})'}
+                for z, (x, y) in enumerate(zip(range(50, 74), range(52, 76)))
+            ] + [
+                {'range': [x, y], 'color': f'rgba(255,255,0,{int(z+76<=enby)})'}
+                for z, (x, y) in enumerate(zip(range(75, 99), range(77, 100)))
+                ],
+            'threshold': {
+            'value': enby,
+            'thickness': 1,
+            'line': {'color': "hsv(120,100,100)", 'width': 5},
             },
+        },
         domain = {'x': [0, 1], 'y': [0.75, 1]},
         title = {'text': "",},
         ))
@@ -151,22 +178,35 @@ def application(img_arr, show_upload=False):
             st.image(img, width=300)
         with col3:
             st.write("")
-    if img_arr.shape[2] == 4:
-        img_arr = img_arr[:,:,:3]
+    if len(img_arr.shape) >= 3:
+        if img_arr.shape[2] == 4:
+            img_arr = img_arr[:,:,:3]
+    else:
+        img_arr = np.concatenate((
+            img_arr[..., np.newaxis],
+            img_arr[..., np.newaxis],
+            img_arr[..., np.newaxis]
+            ),
+            axis=2
+        )
+        st.write(img_arr.shape)
     img = PIL.Image.fromarray(img_arr)
     pred = model_predict(img)
-    figs = plot_pred(pred)
+    with st.expander('Advanced options:'):
+        functions = ("Realistic score", "Raw score")
+        function = st.radio("Algorithm", functions)
+        bin = function == functions[0]
+    figs = plot_pred(pred, bin=bin)
     # st.write(pred)
     st.write('<br><br>', unsafe_allow_html=True)
     st.plotly_chart(figs[0], use_container_width=True)
     st.plotly_chart(figs[1], use_container_width=True)
 
 
-model, input_size = load_model('./cnn.pt')
-
 def main():
+    global model, input_size
+    model, input_size = load_model('./cnn.pt')
     st.title('Gender Adversial')
-
     input_methods = (
         'Upload a picture (jpg, png)',
         'Take a picture (webcam)',
