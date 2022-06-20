@@ -4,9 +4,12 @@ import torchaudio
 import numpy as np
 import pandas as pd
 
-class Inference:
+class AudioInference:
 
-    def __init__(self, model_path, rate, channels, duration, shift_pct):
+    def __init__(
+        self, model_path,
+        rate=16000, channels=1, duration=2300, shift_pct=0.4
+    ):
         self.model_path = model_path
         self.rate = rate
         self.channels = channels

@@ -2,24 +2,24 @@ import torch
 import torchvision
 
 
-class Inference:
+class ImageInference:
 
     def __init__(
-        self, model_name, num_classes, feature_extract,
-        use_pretrained=True, pretrain_path=None
+        self, model_name,
+        num_classes=2, feature_extract=False, use_pretrained=True, pretrain_path=None
         ):
         self.model_name = model_name
         self.num_classes = num_classes
         self.feature_extract = feature_extract
         self.use_pretrained = use_pretrained
         self.pretrain_path = pretrain_path
-        self.model, self.input_size = self._initialize_model(feature_extract)
+        self.model, self.input_size = self._initialize_model()
         if self.pretrain_path is not None:
             self._load_pretrained_model()
         self.model.eval()
 
-    def _set_parameter_requires_grad(model, feature_extracting):
-        if feature_extracting:
+    def _set_parameter_requires_grad(self, model):
+        if self.feature_extract:
             for param in model.parameters():
                 param.requires_grad = False
 
@@ -30,7 +30,7 @@ class Inference:
             """ Resnet18
             """
             model_ft = torchvision.models.resnet18(pretrained=self.use_pretrained)
-            self._set_parameter_requires_grad(model_ft, self.feature_extract)
+            self._set_parameter_requires_grad(model_ft)
             num_ftrs = model_ft.fc.in_features
             model_ft.fc = torch.nn.Linear(num_ftrs, self.num_classes)
             input_size = 224
@@ -38,7 +38,7 @@ class Inference:
             """ Alexnet
             """
             model_ft = torchvision.models.alexnet(pretrained=self.use_pretrained)
-            self._set_parameter_requires_grad(model_ft, self.feature_extract)
+            self._set_parameter_requires_grad(model_ft)
             num_ftrs = model_ft.classifier[6].in_features
             model_ft.classifier[6] = torch.nn.Linear(num_ftrs, self.num_classes)
             input_size = 224
@@ -46,7 +46,7 @@ class Inference:
             """ VGG11_bn
             """
             model_ft = torchvision.models.vgg11_bn(pretrained=self.use_pretrained)
-            self._set_parameter_requires_grad(model_ft, self.feature_extract)
+            self._set_parameter_requires_grad(model_ft)
             num_ftrs = model_ft.classifier[6].in_features
             model_ft.classifier[6] = torch.nn.Linear(num_ftrs, self.num_classes)
             input_size = 224
@@ -54,7 +54,7 @@ class Inference:
             """ Squeezenet
             """
             model_ft = torchvision.models.squeezenet1_0(pretrained=self.use_pretrained)
-            self._set_parameter_requires_grad(model_ft, self.feature_extract)
+            self._set_parameter_requires_grad(model_ft)
             model_ft.classifier[1] = torch.nn.Conv2d(
                 512, self.num_classes, kernel_size=(1,1), stride=(1,1)
                 )
@@ -64,7 +64,7 @@ class Inference:
             """ Densenet
             """
             model_ft = torchvision.models.densenet121(pretrained=self.use_pretrained)
-            self._set_parameter_requires_grad(model_ft, self.feature_extract)
+            self._set_parameter_requires_grad(model_ft)
             num_ftrs = model_ft.classifier.in_features
             model_ft.classifier = torch.nn.Linear(num_ftrs, self.num_classes)
             input_size = 224
@@ -73,7 +73,7 @@ class Inference:
             Be careful, expects (299,299) sized images and has auxiliary output
             """
             model_ft = torchvision.models.inception_v3(pretrained=self.use_pretrained)
-            self._set_parameter_requires_grad(model_ft, self.feature_extract)
+            self._set_parameter_requires_grad(model_ft)
             # Handle the auxilary net
             num_ftrs = model_ft.AuxLogits.fc.in_features
             model_ft.AuxLogits.fc = torch.nn.Linear(num_ftrs, self.num_classes)

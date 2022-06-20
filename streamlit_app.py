@@ -7,44 +7,17 @@ import streamlit as st
 import torch
 import torchvision
 import validators
+from image_processing import ImageInference
+from audio_processing import AudioInference
 
 
-def load_model(path):
-    num_classes = 2
-    input_size = 299
-    model = torchvision.models.inception_v3()
-    # Handle the auxilary net
-    num_ftrs = model.AuxLogits.fc.in_features
-    model.AuxLogits.fc = torch.nn.Linear(num_ftrs, num_classes)
-    # Handle the primary net
-    num_ftrs = model.fc.in_features
-    model.fc = torch.nn.Linear(num_ftrs,num_classes)
-    model.load_state_dict(torch.load(path))
-    model.eval()
-    return model, input_size
+image_model = ImageInference(model_name="inception", pretrain_path='./image_cnn.pt')
+# audio_model = AudioInference(model_path="./audio_cnn.pt")
 
 
-def preprocess_image(image):
-    global input_size
-    transform = torchvision.transforms.Compose([
-        torchvision.transforms.Resize(input_size),
-        torchvision.transforms.CenterCrop(input_size),
-        torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
-    image = transform(image)
-    image = torch.unsqueeze(image, 0)
-    return image
-
-
-def model_predict(image):
-    global model
-    # 0: 'female',
-    # 1: 'male'
-    image = preprocess_image(image)
-    with torch.no_grad():
-        out = model(image)
-    pct = torch.nn.functional.softmax(out, dim=1)[0] * 100
+def image_predict(image):
+    prediction = image_model.process_predict(image)
+    pct = prediction * 100
     female = pct[0].item()
     male = pct[1].item()
     gender_raw = abs(2 * female - 100)
@@ -191,7 +164,7 @@ def application(img_arr, show_upload=False):
         )
         st.write(img_arr.shape)
     img = PIL.Image.fromarray(img_arr)
-    pred = model_predict(img)
+    pred = image_predict(img)
     with st.expander('Advanced options:'):
         functions = ("Realistic score", "Raw score")
         function = st.radio("Algorithm", functions)
@@ -204,8 +177,6 @@ def application(img_arr, show_upload=False):
 
 
 def main():
-    global model, input_size
-    model, input_size = load_model('./image_cnn.pt')
     st.title('Gender Adversial')
     input_methods = (
         'Upload a picture (jpg, png)',
@@ -255,6 +226,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
 
