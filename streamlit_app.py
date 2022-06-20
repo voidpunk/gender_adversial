@@ -205,7 +205,7 @@ def application(img_arr, show_upload=False):
 
 def main():
     global model, input_size
-    model, input_size = load_model('./cnn.pt')
+    model, input_size = load_model('./image_cnn.pt')
     st.title('Gender Adversial')
     input_methods = (
         'Upload a picture (jpg, png)',
