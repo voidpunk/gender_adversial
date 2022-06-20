@@ -1,18 +1,16 @@
 import cv2
-import numpy as np
 import PIL
-import plotly.graph_objects as go
 import requests
-import streamlit as st
-import torch
-import torchvision
 import validators
+import numpy as np
+import streamlit as st
+import plotly.graph_objects as go
 from image_processing import ImageInference
 from audio_processing import AudioInference
 
 
 image_model = ImageInference(model_name="inception", pretrain_path='./image_cnn.pt')
-# audio_model = AudioInference(model_path="./audio_cnn.pt")
+audio_model = AudioInference(model_path="./audio_cnn.pt")
 
 
 def image_predict(image):

@@ -1,8 +1,58 @@
-import os
 import torch
 import torchaudio
 import numpy as np
-import pandas as pd
+
+
+class AudioClassifier (torch.nn.Module):
+
+    def __init__(self):
+        super().__init__()
+        conv_layers = []
+        # 1st conv layer
+        self.conv1 = torch.nn.Conv2d(1, 8, kernel_size=(5, 5), stride=(2, 2), padding=(2, 2))
+        self.relu1 = torch.nn.ReLU()
+        self.bn1 = torch.nn.BatchNorm2d(8)
+        torch.nn.init.kaiming_normal_(self.conv1.weight, a=0.1)
+        self.conv1.bias.data.zero_()
+        conv_layers += [self.conv1, self.relu1, self.bn1]
+        # 2nd conv layer
+        self.conv2 = torch.nn.Conv2d(8, 16, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+        self.relu2 = torch.nn.ReLU()
+        self.bn2 = torch.nn.BatchNorm2d(16)
+        torch.nn.init.kaiming_normal_(self.conv2.weight, a=0.1)
+        self.conv2.bias.data.zero_()
+        conv_layers += [self.conv2, self.relu2, self.bn2]
+        # 3rd conv layer
+        self.conv3 = torch.nn.Conv2d(16, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+        self.relu3 = torch.nn.ReLU()
+        self.bn3 = torch.nn.BatchNorm2d(32)
+        torch.nn.init.kaiming_normal_(self.conv3.weight, a=0.1)
+        self.conv3.bias.data.zero_()
+        conv_layers += [self.conv3, self.relu3, self.bn3]
+        # 4th conv layer
+        self.conv4 = torch.nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+        self.relu4 = torch.nn.ReLU()
+        self.bn4 = torch.nn.BatchNorm2d(64)
+        torch.nn.init.kaiming_normal_(self.conv4.weight, a=0.1)
+        self.conv4.bias.data.zero_()
+        conv_layers += [self.conv4, self.relu4, self.bn4]
+        # Linear Classifier
+        self.ap = torch.nn.AdaptiveAvgPool2d(output_size=1)
+        self.lin = torch.nn.Linear(in_features=64, out_features=2)
+        # Wrap the Convolutional Blocks
+        self.conv = torch.nn.Sequential(*conv_layers)
+
+    def forward(self, x):
+        # Run the convolutional blocks
+        x = self.conv(x)
+        # Adaptive pool and flatten for input to linear layer
+        x = self.ap(x)
+        x = x.view(x.shape[0], -1)
+        # Linear layer
+        x = self.lin(x)
+        # Final output
+        return x
+
 
 class AudioInference:
 
@@ -15,8 +65,13 @@ class AudioInference:
         self.channels = channels
         self.duration = duration
         self.shift_pct = shift_pct
-        self.model = torch.load(model_path)
-        self.model.eval()
+        self.model = self._initialize_model()
+
+    def _initialize_model(self):
+        model = AudioClassifier()
+        model.load_state_dict(torch.load(self.model_path))
+        model.eval()
+        return model
 
     @staticmethod
     def _rechannel(aud, new_ch):
